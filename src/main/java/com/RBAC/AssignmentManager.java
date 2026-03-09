@@ -1,4 +1,8 @@
+package com.RBAC;
+
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -11,19 +15,19 @@ public class AssignmentManager implements Repository<RoleAssignment> {
         boolean duplicate = assignments.values().stream()
                 .anyMatch(a ->
                         a.isActive() &&
-                                a.getUser().equals(assignment.getUser()) &&
-                                a.getRole().equals(assignment.getRole()));
+                                a.user().equals(assignment.user()) &&
+                                a.role().equals(assignment.role()));
 
         if (duplicate) {
             throw new IllegalStateException("Role already assigned to user");
         }
 
-        assignments.put(assignment.getId(), assignment);
+        assignments.put(assignment.assignmentId(), assignment);
     }
 
     @Override
     public boolean remove(RoleAssignment assignment) {
-        return assignments.remove(assignment.getId()) != null;
+        return assignments.remove(assignment.assignmentId()) != null;
     }
 
     @Override
@@ -48,13 +52,13 @@ public class AssignmentManager implements Repository<RoleAssignment> {
 
     public List<RoleAssignment> findByUser(User user) {
         return assignments.values().stream()
-                .filter(a -> a.getUser().equals(user))
+                .filter(a -> a.user().equals(user))
                 .collect(Collectors.toList());
     }
 
     public List<RoleAssignment> findByRole(Role role) {
         return assignments.values().stream()
-                .filter(a -> a.getRole().equals(role))
+                .filter(a -> a.role().equals(role))
                 .collect(Collectors.toList());
     }
 
@@ -78,31 +82,41 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     }
 
     public List<RoleAssignment> getExpiredAssignments() {
-        LocalDate now = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         return assignments.values().stream()
-                .filter(a -> a.getExpiresAt() != null && a.getExpiresAt().isBefore(now))
+                .filter(a -> a instanceof TemporaryAssignment)
+                .map(a -> (TemporaryAssignment) a)
+                .filter(a -> {
+                    try {
+                        LocalDateTime expirationDate = LocalDateTime.parse(a.expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        return expirationDate.isBefore(now);
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
                 .collect(Collectors.toList());
     }
+
 
     public boolean userHasRole(User user, Role role) {
         return assignments.values().stream()
                 .anyMatch(a ->
                         a.isActive() &&
-                                a.getUser().equals(user) &&
-                                a.getRole().equals(role));
+                                a.user().equals(user) &&
+                                a.role().equals(role));
     }
 
     public boolean userHasPermission(User user, String permissionName, String resource) {
         return getUserPermissions(user).stream()
                 .anyMatch(p ->
-                        p.getName().equals(permissionName) &&
-                                p.getResource().equals(resource));
+                        p.name().equals(permissionName) &&
+                                p.resource().equals(resource));
     }
 
     public Set<Permission> getUserPermissions(User user) {
         return assignments.values().stream()
-                .filter(a -> a.isActive() && a.getUser().equals(user))
-                .flatMap(a -> a.getRole().getPermissions().stream())
+                .filter(a -> a.isActive() && a.user().equals(user))
+                .flatMap(a -> a.role().getPermissions().stream())
                 .collect(Collectors.toSet());
     }
 
@@ -111,7 +125,13 @@ public class AssignmentManager implements Repository<RoleAssignment> {
         if (a == null) {
             throw new NoSuchElementException("Assignment not found");
         }
-        a.deactivate();
+
+        if (a instanceof TemporaryAssignment) {
+            String extendDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            ((TemporaryAssignment) a).extend(extendDate);
+        } else {
+            assignments.remove(assignmentId);
+        }
     }
 
     public void extendTemporaryAssignment(String assignmentId, String newExpirationDate) {
@@ -119,6 +139,12 @@ public class AssignmentManager implements Repository<RoleAssignment> {
         if (a == null) {
             throw new NoSuchElementException("Assignment not found");
         }
-        a.extend(LocalDate.parse(newExpirationDate));
+
+        if (!(a instanceof TemporaryAssignment)) {
+            throw new IllegalArgumentException("Assignment is not temporary");
+        }
+
+        TemporaryAssignment tempAssignment = (TemporaryAssignment) a;
+        tempAssignment.extend(newExpirationDate);
     }
 }

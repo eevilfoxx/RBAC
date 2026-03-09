@@ -1,3 +1,5 @@
+package com.RBAC;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -29,13 +31,6 @@ public class TemporaryAssignment  extends AbstractRoleAssignment {
             newExpiration = LocalDateTime.parse(newExpirationDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         } catch (DateTimeParseException e) {
             newExpiration = LocalDateTime.parse(newExpirationDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
-
-        if (newExpiration.isBefore(currentExpiration) && !newExpiration.isEqual(currentExpiration)) {
-            throw new IllegalArgumentException(
-                    "Новая дата истечения должна быть позже текущей. " +
-                            "Текущая: " + expiresAt + ", новая: " + newExpirationDate
-            );
         }
 
         this.expiresAt = newExpirationDate;

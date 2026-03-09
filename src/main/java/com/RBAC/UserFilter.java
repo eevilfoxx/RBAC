@@ -1,3 +1,5 @@
+package com.RBAC;
+
 @FunctionalInterface
 public interface UserFilter {
 

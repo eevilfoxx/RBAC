@@ -1,3 +1,5 @@
+package com.RBAC;
+
 import java.util.regex.Pattern;
 
 public record User(String username, String fullName, String email) {

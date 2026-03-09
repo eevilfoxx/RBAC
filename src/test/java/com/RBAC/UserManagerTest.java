@@ -1,3 +1,5 @@
+package com.RBAC;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -23,8 +25,8 @@ class UserManagerTest {
     @Test
     void addUser() {
 
-        when(user.getUsername()).thenReturn("john");
-        when(user.getEmail()).thenReturn("john@mail.com");
+        when(user.username()).thenReturn("john");
+        when(user.email()).thenReturn("john@mail.com");
 
         manager.add(user);
 
@@ -34,8 +36,8 @@ class UserManagerTest {
     @Test
     void duplicateUserShouldThrow() {
 
-        when(user.getUsername()).thenReturn("john");
-        when(user.getEmail()).thenReturn("john@mail.com");
+        when(user.username()).thenReturn("john");
+        when(user.email()).thenReturn("john@mail.com");
 
         manager.add(user);
 
@@ -46,8 +48,8 @@ class UserManagerTest {
     @Test
     void removeUser() {
 
-        when(user.getUsername()).thenReturn("john");
-        when(user.getEmail()).thenReturn("john@mail.com");
+        when(user.username()).thenReturn("john");
+        when(user.email()).thenReturn("john@mail.com");
 
         manager.add(user);
 

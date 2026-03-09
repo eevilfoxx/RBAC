@@ -1,3 +1,5 @@
+package com.RBAC;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -89,8 +91,8 @@ public class RoleManager implements Repository<Role> {
         return rolesById.values().stream()
                 .filter(r -> r.getPermissions().stream()
                         .anyMatch(p ->
-                                p.getName().equals(permissionName) &&
-                                        p.getResource().equals(resource)))
+                                p.name().equals(permissionName) &&
+                                        p.resource().equals(resource)))
                 .collect(Collectors.toList());
     }
 }

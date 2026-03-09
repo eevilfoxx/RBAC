@@ -1,3 +1,5 @@
+package com.RBAC;
+
 import java.util.*;
 
 
@@ -84,5 +86,9 @@ public class Role {
 
     public String getName() {
         return name;
+    }
+
+    public String getId() {
+        return this.id;
     }
 }

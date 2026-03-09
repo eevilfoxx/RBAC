@@ -1,3 +1,5 @@
+package com.RBAC;
+
 import java.util.Comparator;
 
 public final class UserSorters {
@@ -5,14 +7,14 @@ public final class UserSorters {
     private UserSorters() {}
 
     public static Comparator<User> byUsername() {
-        return Comparator.comparing(User::getUsername);
+        return Comparator.comparing(User::username);
     }
 
     public static Comparator<User> byFullName() {
-        return Comparator.comparing(User::getFullName);
+        return Comparator.comparing(User::fullName);
     }
 
     public static Comparator<User> byEmail() {
-        return Comparator.comparing(User::getEmail);
+        return Comparator.comparing(User::email);
     }
 }

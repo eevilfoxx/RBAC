@@ -1,3 +1,5 @@
+package com.RBAC;
+
 public interface RoleAssignment {
     String assignmentId();
     User user();

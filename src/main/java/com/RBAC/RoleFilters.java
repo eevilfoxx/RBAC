@@ -1,3 +1,5 @@
+package com.RBAC;
+
 public final class RoleFilters {
 
     private RoleFilters() {}
@@ -18,8 +20,8 @@ public final class RoleFilters {
     public static RoleFilter hasPermission(String permissionName, String resource) {
         return r -> r != null && r.getPermissions().stream()
                 .anyMatch(p ->
-                        p.getName().equals(permissionName)
-                                && p.getResource().equals(resource));
+                        p.name().equals(permissionName)
+                                && p.resource().equals(resource));
     }
 
     public static RoleFilter hasAtLeastNPermissions(int n) {

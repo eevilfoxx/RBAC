@@ -1,3 +1,5 @@
+package com.RBAC;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -8,15 +10,15 @@ public class UserManager implements Repository<User> {
     @Override
     public void add(User user) {
         validate(user);
-        if (users.containsKey(user.getUsername())) {
-            throw new IllegalArgumentException("User already exists: " + user.getUsername());
+        if (users.containsKey(user.username())) {
+            throw new IllegalArgumentException("User already exists: " + user.username());
         }
-        users.put(user.getUsername(), user);
+        users.put(user.username(), user);
     }
 
     @Override
     public boolean remove(User user) {
-        return users.remove(user.getUsername()) != null;
+        return users.remove(user.username()) != null;
     }
 
     @Override
@@ -45,7 +47,7 @@ public class UserManager implements Repository<User> {
 
     public Optional<User> findByEmail(String email) {
         return users.values().stream()
-                .filter(u -> u.getEmail().equals(email))
+                .filter(u -> u.email().equals(email))
                 .findFirst();
     }
 
@@ -74,14 +76,17 @@ public class UserManager implements Repository<User> {
         if (newFullName == null || newEmail == null) {
             throw new IllegalArgumentException("Invalid user data");
         }
-        user.setFullName(newFullName);
-        user.setEmail(newEmail);
+
+        User new_user = new User(username, newFullName, newEmail);
+        add(new_user);
+
+        remove(user);
     }
 
     private void validate(User user) {
-        if (user.getUsername().isBlank())
+        if (user.username().isBlank())
             throw new IllegalArgumentException("Username is empty");
-        if (!user.getEmail().contains("@"))
+        if (!user.email().contains("@"))
             throw new IllegalArgumentException("Invalid email");
     }
 }
