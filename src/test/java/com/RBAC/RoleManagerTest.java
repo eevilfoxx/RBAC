@@ -41,9 +41,7 @@ class RoleManagerTest {
     @Test
     void addPermissionToRole() {
 
-        when(role.getId()).thenReturn("1");
-        when(role.getName()).thenReturn("ADMIN");
-        when(role.getPermissions()).thenReturn(new HashSet<>());
+        Role role = new Role("ADMIN", "admin role");
 
         manager.add(role);
 
