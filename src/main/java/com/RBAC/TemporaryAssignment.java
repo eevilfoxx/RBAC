@@ -1,11 +1,9 @@
 package com.RBAC;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
-public class TemporaryAssignment  extends AbstractRoleAssignment {
+public class TemporaryAssignment extends AbstractRoleAssignment {
     String expiresAt;
     private boolean autoRenew;
 
@@ -24,21 +22,13 @@ public class TemporaryAssignment  extends AbstractRoleAssignment {
     }
 
     public void extend(String newExpirationDate) {
-        LocalDateTime currentExpiration = LocalDateTime.parse(expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        LocalDateTime newExpiration;
-
-        try {
-            newExpiration = LocalDateTime.parse(newExpirationDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        } catch (DateTimeParseException e) {
-            newExpiration = LocalDateTime.parse(newExpirationDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
-
+        // Просто обновляем expiresAt
         this.expiresAt = newExpirationDate;
     }
 
     public boolean isExpired() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiration = LocalDateTime.parse(expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        LocalDate now = LocalDate.now();
+        LocalDate expiration = LocalDate.parse(expiresAt); // yyyy-MM-dd
         return now.isAfter(expiration);
     }
 
@@ -46,19 +36,15 @@ public class TemporaryAssignment  extends AbstractRoleAssignment {
         if (isExpired()) {
             return "Expired";
         }
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiration = LocalDateTime.parse(expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
+        LocalDate now = LocalDate.now();
+        LocalDate expiration = LocalDate.parse(expiresAt);
         long days = ChronoUnit.DAYS.between(now, expiration);
-        long hours = ChronoUnit.HOURS.between(now, expiration) % 24;
-        long minutes = ChronoUnit.MINUTES.between(now, expiration) % 60;
 
         if (days > 0) {
-            return String.format("%d days, %d hours, %d minutes", days, hours, minutes);
-        } else if (hours > 0) {
-            return String.format("%d hours, %d minutes", hours, minutes);
+            return String.format("%d days", days);
         } else {
-            return String.format("%d minutes", minutes);
+            return "Less than 1 day";
         }
     }
 
