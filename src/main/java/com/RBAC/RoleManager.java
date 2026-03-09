@@ -76,7 +76,7 @@ public class RoleManager implements Repository<Role> {
         if (role == null) {
             throw new NoSuchElementException("Role not found: " + roleName);
         }
-        role.getPermissions().add(permission);
+        role.addPermission(permission);
     }
 
     public void removePermissionFromRole(String roleName, Permission permission) {
