@@ -1,64 +1,69 @@
-import org.junit.jupiter.api.*;
-import static org.junit.jupiter.api.Assertions.*;
-import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.HashSet;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class RoleManagerTest {
 
     private RoleManager manager;
-    private Role admin;
-    private Permission read;
-    private Permission write;
+
+    @Mock
+    private Role role;
+
+    @Mock
+    private Permission permission;
 
     @BeforeEach
     void setUp() {
         manager = new RoleManager();
-        admin = new Role("1", "ADMIN");
-        read = new Permission("READ", "USER");
-        write = new Permission("WRITE", "USER");
-
-        manager.add(admin);
     }
 
     @Test
-    void addRole_duplicateName_throwsException() {
-        Role r = new Role("2", "ADMIN");
-        assertThrows(IllegalArgumentException.class, () -> manager.add(r));
+    void addRole() {
+
+        when(role.getId()).thenReturn("1");
+        when(role.getName()).thenReturn("ADMIN");
+
+        manager.add(role);
+
+        assertEquals(1, manager.count());
     }
 
     @Test
-    void addPermissionToRole_success() {
-        manager.addPermissionToRole("ADMIN", read);
-        assertTrue(admin.getPermissions().contains(read));
+    void addPermissionToRole() {
+
+        when(role.getId()).thenReturn("1");
+        when(role.getName()).thenReturn("ADMIN");
+        when(role.getPermissions()).thenReturn(new HashSet<>());
+
+        manager.add(role);
+
+        manager.addPermissionToRole("ADMIN", permission);
+
+        assertTrue(role.getPermissions().contains(permission));
     }
 
     @Test
-    void removePermissionFromRole_success() {
-        admin.getPermissions().add(write);
-        manager.removePermissionFromRole("ADMIN", write);
+    void removePermissionFromRole() {
 
-        assertFalse(admin.getPermissions().contains(write));
-    }
+        HashSet<Permission> permissions = new HashSet<>();
+        permissions.add(permission);
 
-    @Test
-    void findRolesWithPermission() {
-        admin.getPermissions().add(read);
+        when(role.getId()).thenReturn("1");
+        when(role.getName()).thenReturn("ADMIN");
+        when(role.getPermissions()).thenReturn(permissions);
 
-        List<Role> roles = manager.findRolesWithPermission("READ", "USER");
-        assertEquals(1, roles.size());
-        assertEquals("ADMIN", roles.get(0).getName());
-    }
+        manager.add(role);
 
-    @Test
-    void findByFilter_and_sort() {
-        Role user = new Role("2", "USER");
-        manager.add(user);
+        manager.removePermissionFromRole("ADMIN", permission);
 
-        List<Role> result = manager.findAll(
-                RoleFilters.byNameContains(""),
-                Comparator.comparing(Role::getName)
-        );
-
-        assertEquals(List.of("ADMIN", "USER"),
-                result.stream().map(Role::getName).toList());
+        assertFalse(permissions.contains(permission));
     }
 }

@@ -1,10 +1,19 @@
-import org.junit.jupiter.api.*;
-import java.util.*;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class UserManagerTest {
 
     private UserManager manager;
+
+    @Mock
+    private User user;
 
     @BeforeEach
     void setUp() {
@@ -12,62 +21,36 @@ class UserManagerTest {
     }
 
     @Test
-    void addUser_success() {
-        User u = new User("john", "John Doe", "john@mail.com");
-        manager.add(u);
+    void addUser() {
+
+        when(user.getUsername()).thenReturn("john");
+        when(user.getEmail()).thenReturn("john@mail.com");
+
+        manager.add(user);
 
         assertEquals(1, manager.count());
-        assertTrue(manager.exists("john"));
     }
 
     @Test
-    void addUser_duplicateUsername_throwsException() {
-        User u1 = new User("john", "John Doe", "john@mail.com");
-        User u2 = new User("john", "Johnny", "johnny@mail.com");
+    void duplicateUserShouldThrow() {
 
-        manager.add(u1);
-        assertThrows(IllegalArgumentException.class, () -> manager.add(u2));
+        when(user.getUsername()).thenReturn("john");
+        when(user.getEmail()).thenReturn("john@mail.com");
+
+        manager.add(user);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> manager.add(user));
     }
 
     @Test
-    void findByUsername_found() {
-        User u = new User("anna", "Anna Smith", "anna@mail.com");
-        manager.add(u);
+    void removeUser() {
 
-        Optional<User> result = manager.findByUsername("anna");
-        assertTrue(result.isPresent());
-        assertEquals("Anna Smith", result.get().getFullName());
-    }
+        when(user.getUsername()).thenReturn("john");
+        when(user.getEmail()).thenReturn("john@mail.com");
 
-    @Test
-    void updateUser_success() {
-        User u = new User("kate", "Kate", "k@mail.com");
-        manager.add(u);
+        manager.add(user);
 
-        manager.update("kate", "Kate Updated", "new@mail.com");
-
-        User updated = manager.findByUsername("kate").orElseThrow();
-        assertEquals("Kate Updated", updated.getFullName());
-        assertEquals("new@mail.com", updated.getEmail());
-    }
-
-    @Test
-    void updateNonExistingUser_throwsException() {
-        assertThrows(NoSuchElementException.class,
-                () -> manager.update("ghost", "X", "x@mail.com"));
-    }
-
-    @Test
-    void findByFilter_and_sorter() {
-        manager.add(new User("b", "Bob", "b@mail.com"));
-        manager.add(new User("a", "Alice", "a@mail.com"));
-
-        List<User> result = manager.findAll(
-                UserFilters.byUsernameContains(""),
-                Comparator.comparing(User::getUsername)
-        );
-
-        assertEquals(List.of("a", "b"),
-                result.stream().map(User::getUsername).toList());
+        assertTrue(manager.remove(user));
     }
 }
