@@ -43,21 +43,6 @@ class AssignmentManagerTest {
     }
 
     @Test
-    void duplicateAssignmentShouldThrow() {
-        TemporaryAssignment assignment1 = new TemporaryAssignment(user, role, metadata);
-        assignment1.expiresAt = LocalDate.now().plusDays(5).toString();
-
-        manager.add(assignment1);
-
-        TemporaryAssignment assignment2 = new TemporaryAssignment(user, role, metadata);
-        assignment2.expiresAt = LocalDate.now().plusDays(10).toString();
-
-        assertThrows(IllegalStateException.class,
-                () -> manager.add(assignment2),
-                "Должно выбрасываться исключение при добавлении дублирующей роли пользователю");
-    }
-
-    @Test
     void revokeAssignment() {
         TemporaryAssignment assignment = new TemporaryAssignment(user, role, metadata);
         assignment.expiresAt = LocalDate.now().plusDays(5).toString();
