@@ -29,7 +29,7 @@ class AssignmentManagerTest {
     @BeforeEach
     void setUp() {
         manager = new AssignmentManager();
-        metadata = new AssignmentMetadata("system", LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME), "Test assignment");
+        metadata = new AssignmentMetadata("system", LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), "Test assignment");
     }
 
     @Test
@@ -63,7 +63,7 @@ class AssignmentManagerTest {
         assignment.expiresAt = LocalDate.now().plusDays(5).toString();
 
         manager.add(assignment);
-        
+
         assertTrue(assignment.isActive());
 
         manager.revokeAssignment(assignment.assignmentId());
