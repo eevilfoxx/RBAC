@@ -1,8 +1,5 @@
 package com.RBAC;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,7 +16,7 @@ public class AssignmentManager implements Repository<RoleAssignment> {
                                 a.role().equals(assignment.role()));
 
         if (duplicate) {
-            throw new IllegalStateException("Role already assigned to user");
+            throw new IllegalStateException("Роль уже назначена пользователю");
         }
 
         assignments.put(assignment.assignmentId(), assignment);
@@ -82,21 +79,24 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     }
 
     public List<RoleAssignment> getExpiredAssignments() {
-        LocalDateTime now = LocalDateTime.now();
         return assignments.values().stream()
                 .filter(a -> a instanceof TemporaryAssignment)
                 .map(a -> (TemporaryAssignment) a)
-                .filter(a -> {
-                    try {
-                        LocalDateTime expirationDate = LocalDateTime.parse(a.expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                        return expirationDate.isBefore(now);
-                    } catch (Exception e) {
-                        return false;
-                    }
-                })
+                .filter(TemporaryAssignment::isExpired)
                 .collect(Collectors.toList());
     }
 
+    public List<TemporaryAssignment> getAssignmentsExpiringSoon(int daysThreshold) {
+        String thresholdDate = DateUtils.addDays(DateUtils.getCurrentDate(), daysThreshold);
+
+        return assignments.values().stream()
+                .filter(a -> a instanceof TemporaryAssignment)
+                .map(a -> (TemporaryAssignment) a)
+                .filter(ta -> ta.getExpiresAt() != null)
+                .filter(ta -> !ta.isExpired())
+                .filter(ta -> DateUtils.isBeforeOrEqual(ta.getExpiresAt(), thresholdDate))
+                .collect(Collectors.toList());
+    }
 
     public boolean userHasRole(User user, Role role) {
         return assignments.values().stream()
@@ -123,12 +123,12 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     public void revokeAssignment(String assignmentId) {
         RoleAssignment a = assignments.get(assignmentId);
         if (a == null) {
-            throw new NoSuchElementException("Assignment not found");
+            throw new NoSuchElementException("Назначение не найдено");
         }
 
         if (a instanceof TemporaryAssignment) {
-            String extendDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            ((TemporaryAssignment) a).extend(extendDate);
+            String yesterday = DateUtils.subtractDays(DateUtils.getCurrentDate(), 1);
+            ((TemporaryAssignment) a).setExpiresAt(yesterday);
         } else {
             assignments.remove(assignmentId);
         }
@@ -137,14 +137,49 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     public void extendTemporaryAssignment(String assignmentId, String newExpirationDate) {
         RoleAssignment a = assignments.get(assignmentId);
         if (a == null) {
-            throw new NoSuchElementException("Assignment not found");
+            throw new NoSuchElementException("Назначение не найдено");
         }
 
-        if (!(a instanceof TemporaryAssignment)) {
-            throw new IllegalArgumentException("Assignment is not temporary");
+        if (!(a instanceof TemporaryAssignment tempAssignment)) {
+            throw new IllegalArgumentException("Назначение не является временным");
         }
 
-        TemporaryAssignment tempAssignment = (TemporaryAssignment) a;
+        if (!DateUtils.isValidDate(newExpirationDate)) {
+            throw new IllegalArgumentException("Неверный формат даты. Используйте YYYY-MM-DD");
+        }
+
+        if (tempAssignment.getExpiresAt() != null &&
+                DateUtils.isBeforeOrEqual(newExpirationDate, tempAssignment.getExpiresAt())) {
+            throw new IllegalArgumentException("Новая дата должна быть позже текущей даты истечения");
+        }
+
         tempAssignment.extend(newExpirationDate);
+    }
+
+    public Map<String, Long> getStatistics() {
+        Map<String, Long> stats = new HashMap<>();
+
+        stats.put("total", (long) assignments.size());
+        stats.put("active", (long) getActiveAssignments().size());
+        stats.put("expired", (long) getExpiredAssignments().size());
+        stats.put("expiringSoon", (long) getAssignmentsExpiringSoon(3).size());
+        stats.put("temporary", assignments.values().stream()
+                .filter(a -> a instanceof TemporaryAssignment)
+                .count());
+        stats.put("permanent", assignments.values().stream()
+                .filter(a -> !(a instanceof TemporaryAssignment))
+                .count());
+
+        return stats;
+    }
+
+    public List<RoleAssignment> getAssignmentsByDateRange(String startDate, String endDate) {
+        return assignments.values().stream()
+                .filter(a -> {
+                    String assignedAt = a.metadata().assignedAt();
+                    return DateUtils.isAfterOrEqual(assignedAt, startDate) &&
+                            DateUtils.isBeforeOrEqual(assignedAt, endDate);
+                })
+                .collect(Collectors.toList());
     }
 }
