@@ -637,5 +637,57 @@ public class CommandRegistry {
                 sys.getAuditLog().log("EXIT_CANCELLED", sys.getCurrentUser(), "system", "Exit cancelled");
             }
         });
+
+        // =================== Reports ===================
+        parser.registerCommand("report-users", "Отчёт по всем пользователям с их ролями", (s, sys) -> {
+            ReportGenerator reportGen = new ReportGenerator();
+            String report = reportGen.generateUserReport(sys.getUserManager(), sys.getAssignmentManager());
+
+            System.out.println("\n" + report);
+            sys.getAuditLog().log("REPORT_USERS", sys.getCurrentUser(), "system", "Generated user report");
+
+            System.out.print("Сохранить отчёт в файл? (да/нет): ");
+            String answer = s.nextLine().trim();
+            if ("да".equalsIgnoreCase(answer)) {
+                System.out.print("Имя файла (например, user_report.txt): ");
+                String filename = s.nextLine().trim();
+                reportGen.exportToFile(report, filename);
+                sys.getAuditLog().log("REPORT_USERS_SAVE", sys.getCurrentUser(), filename, "Saved user report to file");
+            }
+        });
+
+        parser.registerCommand("report-roles", "Отчёт по ролям с количеством пользователей", (s, sys) -> {
+            ReportGenerator reportGen = new ReportGenerator();
+            String report = reportGen.generateRoleReport(sys.getRoleManager(), sys.getAssignmentManager());
+
+            System.out.println("\n" + report);
+            sys.getAuditLog().log("REPORT_ROLES", sys.getCurrentUser(), "system", "Generated role report");
+
+            System.out.print("Сохранить отчёт в файл? (да/нет): ");
+            String answer = s.nextLine().trim();
+            if ("да".equalsIgnoreCase(answer)) {
+                System.out.print("Имя файла (например, role_report.txt): ");
+                String filename = s.nextLine().trim();
+                reportGen.exportToFile(report, filename);
+                sys.getAuditLog().log("REPORT_ROLES_SAVE", sys.getCurrentUser(), filename, "Saved role report to file");
+            }
+        });
+
+        parser.registerCommand("report-matrix", "Матрица прав (пользователи × ресурсы)", (s, sys) -> {
+            ReportGenerator reportGen = new ReportGenerator();
+            String report = reportGen.generatePermissionMatrix(sys.getUserManager(), sys.getAssignmentManager());
+
+            System.out.println("\n" + report);
+            sys.getAuditLog().log("REPORT_MATRIX", sys.getCurrentUser(), "system", "Generated permission matrix");
+
+            System.out.print("Сохранить отчёт в файл? (да/нет): ");
+            String answer = s.nextLine().trim();
+            if ("да".equalsIgnoreCase(answer)) {
+                System.out.print("Имя файла (например, matrix_report.txt): ");
+                String filename = s.nextLine().trim();
+                reportGen.exportToFile(report, filename);
+                sys.getAuditLog().log("REPORT_MATRIX_SAVE", sys.getCurrentUser(), filename, "Saved permission matrix to file");
+            }
+        });
     }
 }
