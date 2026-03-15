@@ -91,4 +91,8 @@ public class Role {
     public String getId() {
         return this.id;
     }
+
+    public String getDescription() {
+        return  this.description;
+    }
 }
