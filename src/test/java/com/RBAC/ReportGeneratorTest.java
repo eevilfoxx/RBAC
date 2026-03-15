@@ -37,11 +37,11 @@ class ReportGeneratorTest {
         User user1 = new User("john", "John Doe", "john@test.com");
         User user2 = new User("jane", "Jane Doe", "jane@test.com");
 
-        Role role1 = new Role("admin", "Administrator");
-        Role role2 = new Role("user", "Regular User");
+        Role role1 = new Role("admin_role", "Administrator");
+        Role role2 = new Role("user_role", "Regular User");
 
-        AssignmentMetadata meta1 = new AssignmentMetadata("admin", "2024-01-01", "Initial");
-        AssignmentMetadata meta2 = new AssignmentMetadata("admin", "2024-01-02", "Initial");
+        AssignmentMetadata meta1 = AssignmentMetadata.now("admin", "Initial");
+        AssignmentMetadata meta2 = AssignmentMetadata.now("admin", "Initial");
 
         RoleAssignment assignment1 = new TemporaryAssignment(user1, role1, meta1);
         RoleAssignment assignment2 = new TemporaryAssignment(user1, role2, meta1);
@@ -52,15 +52,14 @@ class ReportGeneratorTest {
         when(assignmentManager.findByUser(user2)).thenReturn(List.of(assignment3));
         when(assignmentManager.findAll()).thenReturn(Arrays.asList(assignment1, assignment2, assignment3));
 
-
         String report = reportGenerator.generateUserReport(userManager, assignmentManager);
 
         assertNotNull(report);
         assertTrue(report.contains("USER REPORT"));
         assertTrue(report.contains("john"));
         assertTrue(report.contains("jane"));
-        assertTrue(report.contains("admin"));
-        assertTrue(report.contains("user"));
+        assertTrue(report.contains("admin_role"));
+        assertTrue(report.contains("user_role"));
         assertTrue(report.contains("Total users: 2"));
     }
 
@@ -77,8 +76,8 @@ class ReportGeneratorTest {
 
     @Test
     void testGenerateRoleReport() {
-        Role role1 = new Role("admin", "Administrator");
-        Role role2 = new Role("manager", "Manager");
+        Role role1 = new Role("admin_role", "Administrator");
+        Role role2 = new Role("manager_role", "Manager");
 
         role1.addPermission(new Permission("read", "users", "Can read users"));
         role1.addPermission(new Permission("write", "users", "Can write users"));
@@ -87,7 +86,7 @@ class ReportGeneratorTest {
         User user1 = new User("john", "John Doe", "john@test.com");
         User user2 = new User("jane", "Jane Doe", "jane@test.com");
 
-        AssignmentMetadata meta = new AssignmentMetadata("admin", "2024-01-01", "Initial");
+        AssignmentMetadata meta = AssignmentMetadata.now("admin", "Initial");
 
         when(roleManager.findAll()).thenReturn(Arrays.asList(role1, role2));
 
@@ -102,10 +101,20 @@ class ReportGeneratorTest {
 
         assertNotNull(report);
         assertTrue(report.contains("ROLE REPORT"));
-        assertTrue(report.contains("admin"));
-        assertTrue(report.contains("manager"));
-        assertTrue(report.contains("2 users")); // admin role has 2 users
-        assertTrue(report.contains("1 users")); // manager role has 1 user
+        assertTrue(report.contains("admin_role"));
+        assertTrue(report.contains("manager_role"));
+        assertTrue(report.contains("2"));
+        assertTrue(report.contains("1"));
+    }
+
+    @Test
+    void testGenerateRoleReportWithNoRoles() {
+        when(roleManager.findAll()).thenReturn(Collections.emptyList());
+
+        String report = reportGenerator.generateRoleReport(roleManager, assignmentManager);
+
+        assertNotNull(report);
+        assertTrue(report.contains("Total roles: 0"));
     }
 
     @Test
@@ -113,19 +122,25 @@ class ReportGeneratorTest {
         User user1 = new User("john", "John Doe", "john@test.com");
         User user2 = new User("jane", "Jane Doe", "jane@test.com");
 
-        Role role1 = new Role("admin", "Administrator");
-        Role role2 = new Role("user", "Regular User");
+        Role role1 = new Role("admin_role", "Administrator");
+        Role role2 = new Role("user_role", "Regular User");
 
         role1.addPermission(new Permission("read", "users", "Can read"));
         role1.addPermission(new Permission("write", "users", "Can write"));
         role2.addPermission(new Permission("read", "reports", "Can read"));
 
-        AssignmentMetadata meta1 = new AssignmentMetadata("admin", "2024-01-01", "Initial");
-        AssignmentMetadata meta2 = new AssignmentMetadata("admin", "2024-01-02", "Initial");
+        AssignmentMetadata meta1 = AssignmentMetadata.now("admin", "Initial");
+        AssignmentMetadata meta2 = AssignmentMetadata.now("admin", "Initial");
 
-        RoleAssignment assignment1 = new TemporaryAssignment(user1, role1, meta1);
-        RoleAssignment assignment2 = new TemporaryAssignment(user1, role2, meta1);
-        RoleAssignment assignment3 = new TemporaryAssignment(user2, role2, meta2);
+        TemporaryAssignment assignment1 = new TemporaryAssignment(user1, role1, meta1);
+        String futureDate = DateUtils.addDays(DateUtils.getCurrentDate(), 30);
+        assignment1.setExpiresAt(futureDate);
+
+        TemporaryAssignment assignment2 = new TemporaryAssignment(user1, role2, meta1);
+        assignment2.setExpiresAt(futureDate);
+
+        TemporaryAssignment assignment3 = new TemporaryAssignment(user2, role2, meta2);
+        assignment3.setExpiresAt(futureDate);
 
         when(userManager.findAll()).thenReturn(Arrays.asList(user1, user2));
         when(assignmentManager.findByUser(user1)).thenReturn(Arrays.asList(assignment1, assignment2));
@@ -139,5 +154,15 @@ class ReportGeneratorTest {
         assertTrue(report.contains("jane"));
         assertTrue(report.contains("users"));
         assertTrue(report.contains("reports"));
+    }
+
+    @Test
+    void testGeneratePermissionMatrixWithNoUsers() {
+        when(userManager.findAll()).thenReturn(Collections.emptyList());
+
+        String report = reportGenerator.generatePermissionMatrix(userManager, assignmentManager);
+
+        assertNotNull(report);
+        assertTrue(report.contains("PERMISSION MATRIX"));
     }
 }
