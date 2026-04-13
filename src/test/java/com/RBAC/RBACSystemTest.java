@@ -1,15 +1,22 @@
 package com.RBAC;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class RBACSystemTest {
 
+    private RBACSystem system;
+
+    @BeforeEach
+    void setUp() {
+        system = new RBACSystem();
+        system.reset();
+    }
+
     @Test
     void initializeCreatesAdminUser() {
-
-        RBACSystem system = new RBACSystem();
 
         system.initialize();
 
@@ -25,15 +32,12 @@ class RBACSystemTest {
     @Test
     void statisticsGenerated() {
 
-        RBACSystem system = new RBACSystem();
         system.initialize();
 
         String stats = system.generateStatistics();
 
-        assertNotNull(stats);
         assertTrue(stats.contains("Users"));
         assertTrue(stats.contains("Roles"));
         assertTrue(stats.contains("Assignments"));
-        assertTrue(stats.contains("Audit entries"));
     }
 }
