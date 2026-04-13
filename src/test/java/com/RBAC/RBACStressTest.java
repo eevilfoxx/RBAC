@@ -1,36 +1,54 @@
 package com.RBAC;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class RBACStressTest {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-    public static void main(String[] args) throws InterruptedException {
+class RBACStressTest {
 
-        RBACSystem system = new RBACSystem();
-        system.initialize();
+    private UserManager userManager;
+    private RoleManager roleManager;
+    private AssignmentManager assignmentManager;
 
-        UserManager userManager = system.getUserManager();
-        RoleManager roleManager = system.getRoleManager();
-        AssignmentManager assignmentManager = system.getAssignmentManager();
+    private List<Role> roles;
+
+    @BeforeEach
+    void setUp() {
+        userManager = new UserManager();
+        roleManager = new RoleManager();
+        assignmentManager = new AssignmentManager();
+
+        roles = new ArrayList<>();
+        roles.add(new Role("Admin", "admin"));
+        roles.add(new Role("User", "user"));
+        roles.add(new Role("Manager", "manager"));
+
+        roles.forEach(roleManager::add);
+    }
+
+    @Test
+    void stressTestConcurrentOperations() throws InterruptedException {
 
         int threads = 10;
         int operationsPerThread = 200;
 
         ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch latch = new CountDownLatch(threads);
 
         AtomicInteger createdUsers = new AtomicInteger();
         AtomicInteger assignedRoles = new AtomicInteger();
         AtomicInteger searchOps = new AtomicInteger();
 
-        List<Role> roles = roleManager.findAll();
-
         System.out.println("START STRESS TEST");
 
-        CountDownLatch latch = new CountDownLatch(threads);
-
         for (int t = 0; t < threads; t++) {
+
             int threadId = t;
 
             executor.submit(() -> {
@@ -46,40 +64,35 @@ public class RBACStressTest {
                             case 0 -> {
                                 String username = "user_" + threadId + "_" + i;
 
-                                try {
-                                    User u = new User(
-                                            username,
-                                            "Test User " + i,
-                                            username + "@mail.com"
-                                    );
+                                User user = new User(
+                                        username,
+                                        "Test User " + i,
+                                        username + "@mail.com"
+                                );
 
-                                    userManager.add(u);
-                                    createdUsers.incrementAndGet();
-                                } catch (Exception ignored) {
-                                }
+                                userManager.add(user);
+                                createdUsers.incrementAndGet();
                             }
 
                             case 1 -> {
                                 List<User> users = userManager.findAll();
-                                if (!users.isEmpty() && !roles.isEmpty()) {
 
+                                if (!users.isEmpty() && !roles.isEmpty()) {
                                     User u = users.get(random.nextInt(users.size()));
                                     Role r = roles.get(random.nextInt(roles.size()));
 
-                                    try {
-                                        RoleAssignment a = new PermanentAssignment(
-                                                u,
-                                                r,
-                                                AssignmentMetadata.now("stress-test", "load test")
-                                        );
+                                    RoleAssignment assignment =
+                                            new PermanentAssignment(
+                                                    u,
+                                                    r,
+                                                    AssignmentMetadata.now("stress-test", "load test")
+                                            );
 
-                                        assignmentManager.add(a);
-                                        assignedRoles.incrementAndGet();
-
-                                    } catch (Exception ignored) {
-                                    }
+                                    assignmentManager.add(assignment);
+                                    assignedRoles.incrementAndGet();
                                 }
                             }
+
                             case 2 -> {
                                 List<User> users = userManager.findAll();
 
@@ -116,11 +129,12 @@ public class RBACStressTest {
 
         validateIntegrity(userManager, assignmentManager);
 
-        System.out.println("\nSTRESS TEST COMPLETED");
+        assertTrue(userManager.count() > 0);
+        assertTrue(roleManager.count() > 0);
     }
 
-    private static void validateIntegrity(UserManager userManager,
-                                          AssignmentManager assignmentManager) {
+    private void validateIntegrity(UserManager userManager,
+                                   AssignmentManager assignmentManager) {
 
         System.out.println("\n=== INTEGRITY CHECK ===");
 
@@ -144,17 +158,19 @@ public class RBACStressTest {
             }
         }
 
-        int missingRoles = 0;
+        int missingUsers = 0;
 
         for (RoleAssignment a : assignments) {
-            boolean exists = userManager.findAll().contains(a.user());
-            if (!exists) {
-                missingRoles++;
+            if (!users.contains(a.user())) {
+                missingUsers++;
             }
         }
 
         System.out.println("Duplicate users: " + duplicateUsers);
         System.out.println("Broken assignments: " + brokenAssignments);
-        System.out.println("Assignments with missing users: " + missingRoles);
+        System.out.println("Assignments with missing users: " + missingUsers);
+
+        assertEquals(0, duplicateUsers);
+        assertEquals(0, brokenAssignments);
     }
 }
