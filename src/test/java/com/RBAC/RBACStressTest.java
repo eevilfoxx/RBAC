@@ -1,14 +1,13 @@
 package com.RBAC;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class RBACStressTest {
 
@@ -25,11 +24,18 @@ class RBACStressTest {
         assignmentManager = new AssignmentManager();
 
         roles = new ArrayList<>();
-        roles.add(new Role("Admin", "admin"));
-        roles.add(new Role("User", "user"));
-        roles.add(new Role("Manager", "manager"));
 
-        roles.forEach(roleManager::add);
+        Role admin = new Role("Admin", "admin");
+        Role user = new Role("User", "user");
+        Role manager = new Role("Manager", "manager");
+
+        roleManager.add(admin);
+        roleManager.add(user);
+        roleManager.add(manager);
+
+        roles.add(admin);
+        roles.add(user);
+        roles.add(manager);
     }
 
     @Test
@@ -60,7 +66,7 @@ class RBACStressTest {
                         int op = random.nextInt(3);
 
                         switch (op) {
-
+                            
                             case 0 -> {
                                 String username = "user_" + threadId + "_" + i;
 
@@ -77,7 +83,7 @@ class RBACStressTest {
                             case 1 -> {
                                 List<User> users = userManager.findAll();
 
-                                if (!users.isEmpty() && !roles.isEmpty()) {
+                                if (!users.isEmpty()) {
                                     User u = users.get(random.nextInt(users.size()));
                                     Role r = roles.get(random.nextInt(roles.size()));
 
@@ -130,7 +136,7 @@ class RBACStressTest {
         validateIntegrity(userManager, assignmentManager);
 
         assertTrue(userManager.count() > 0);
-        assertTrue(roleManager.count() > 0);
+        assertTrue(roleManager.count() == 3);
     }
 
     private void validateIntegrity(UserManager userManager,
