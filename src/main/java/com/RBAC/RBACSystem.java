@@ -1,8 +1,7 @@
 package com.RBAC;
 
+import java.util.concurrent.*;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
 
 public class RBACSystem {
 
@@ -10,14 +9,21 @@ public class RBACSystem {
     private final RoleManager roleManager;
     private final AssignmentManager assignmentManager;
     private final AuditLog auditLog;
+
     private String currentUser;
+
+    private final ExecutorService executor;
 
     public RBACSystem() {
         this.userManager = new UserManager();
         this.roleManager = new RoleManager();
         this.assignmentManager = new AssignmentManager();
-        this.currentUser = null;
         this.auditLog = new AuditLog();
+        this.currentUser = null;
+
+        this.executor = Executors.newFixedThreadPool(
+                Runtime.getRuntime().availableProcessors()
+        );
     }
 
     public UserManager getUserManager() {
@@ -68,9 +74,30 @@ public class RBACSystem {
         PermanentAssignment adminAssignment = new PermanentAssignment(
                 adminUser,
                 adminRole,
-                AssignmentMetadata.now("system","Initial admin assignment"));
+                AssignmentMetadata.now("system", "Initial admin assignment")
+        );
 
         assignmentManager.add(adminAssignment);
+    }
+
+
+    public Future<String> generateStatisticsAsync() {
+        return executor.submit(this::generateStatistics);
+    }
+
+    public Future<Void> initializeAsync() {
+        return executor.submit(() -> {
+            initialize();
+            return null;
+        });
+    }
+
+    public <T> Future<T> submitTask(Callable<T> task) {
+        return executor.submit(task);
+    }
+
+    public Future<?> runAsync(Runnable task) {
+        return executor.submit(task);
     }
 
 
@@ -84,4 +111,16 @@ public class RBACSystem {
         return sb.toString();
     }
 
+
+    public void shutdown() {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
 }
