@@ -1,7 +1,3 @@
-package com.RBAC;
-
-import java.util.*;
-import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AssignmentManager implements Repository<RoleAssignment> {
@@ -17,9 +13,6 @@ public class AssignmentManager implements Repository<RoleAssignment> {
                             a.user().equals(assignment.user()) &&
                             a.role().equals(assignment.role()));
 
-        if (duplicate) {
-            throw new IllegalStateException("Роль уже назначена пользователю");
-        }
             if (duplicate) {
                 throw new IllegalStateException("Role already assigned to user");
             }
@@ -85,8 +78,6 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     }
 
     public List<RoleAssignment> getExpiredAssignments() {
-        LocalDateTime now = LocalDateTime.now();
-
         return assignments.values().stream()
                 .filter(a -> a instanceof TemporaryAssignment)
                 .map(a -> (TemporaryAssignment) a)
@@ -103,17 +94,6 @@ public class AssignmentManager implements Repository<RoleAssignment> {
                 .filter(ta -> ta.getExpiresAt() != null)
                 .filter(ta -> !ta.isExpired())
                 .filter(ta -> DateUtils.isBeforeOrEqual(ta.getExpiresAt(), thresholdDate))
-                .filter(a -> {
-                    try {
-                        LocalDateTime expirationDate = LocalDateTime.parse(
-                                a.expiresAt,
-                                DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                        );
-                        return expirationDate.isBefore(now);
-                    } catch (Exception e) {
-                        return false;
-                    }
-                })
                 .collect(Collectors.toList());
     }
 
@@ -140,59 +120,40 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     }
 
     public void revokeAssignment(String assignmentId) {
-        RoleAssignment a = assignments.get(assignmentId);
-        if (a == null) {
-            throw new NoSuchElementException("Назначение не найдено");
-        }
         assignments.compute(assignmentId, (id, a) -> {
             if (a == null) {
                 throw new NoSuchElementException("Assignment not found");
             }
 
-        if (a instanceof TemporaryAssignment) {
-            String yesterday = DateUtils.subtractDays(DateUtils.getCurrentDate(), 1);
-            ((TemporaryAssignment) a).setExpiresAt(yesterday);
-        } else {
-            assignments.remove(assignmentId);
-        }
             if (a instanceof TemporaryAssignment temp) {
-                String extendDate = LocalDate.now()
-                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                temp.extend(extendDate);
+                String yesterday = DateUtils.subtractDays(DateUtils.getCurrentDate(), 1);
+                temp.setExpiresAt(yesterday);
                 return temp;
             } else {
-                return null;
+                return null; // удаление
             }
         });
     }
 
     public void extendTemporaryAssignment(String assignmentId, String newExpirationDate) {
-        RoleAssignment a = assignments.get(assignmentId);
-        if (a == null) {
-            throw new NoSuchElementException("Назначение не найдено");
-        }
         assignments.compute(assignmentId, (id, a) -> {
             if (a == null) {
                 throw new NoSuchElementException("Assignment not found");
             }
 
-        if (!(a instanceof TemporaryAssignment tempAssignment)) {
-            throw new IllegalArgumentException("Назначение не является временным");
-        }
-
-        if (!DateUtils.isValidDate(newExpirationDate)) {
-            throw new IllegalArgumentException("Неверный формат даты. Используйте YYYY-MM-DD");
-        }
             if (!(a instanceof TemporaryAssignment temp)) {
                 throw new IllegalArgumentException("Assignment is not temporary");
             }
 
-        if (tempAssignment.getExpiresAt() != null &&
-                DateUtils.isBeforeOrEqual(newExpirationDate, tempAssignment.getExpiresAt())) {
-            throw new IllegalArgumentException("Новая дата должна быть позже текущей даты истечения");
-        }
+            if (!DateUtils.isValidDate(newExpirationDate)) {
+                throw new IllegalArgumentException("Invalid date format");
+            }
 
-        tempAssignment.extend(newExpirationDate);
+            if (temp.getExpiresAt() != null &&
+                    DateUtils.isBeforeOrEqual(newExpirationDate, temp.getExpiresAt())) {
+                throw new IllegalArgumentException("New date must be later");
+            }
+
             temp.extend(newExpirationDate);
             return temp;
         });
