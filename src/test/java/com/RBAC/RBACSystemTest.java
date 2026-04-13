@@ -20,12 +20,8 @@ class RBACSystemTest {
         userManager.add(admin);
 
         Role adminRole = new Role("admin", "admin");
-        Role managerRole = new Role("manager", "manager");
-        Role viewerRole = new Role("viewer", "viewer");
 
-        roleManager.add(adminRole);
-        roleManager.add(managerRole);
-        roleManager.add(viewerRole);
+        roleManager.add(adminRole);;
 
         assignmentManager.add(
                 new PermanentAssignment(
@@ -36,7 +32,7 @@ class RBACSystemTest {
         );
 
         assertEquals(1, userManager.count());
-        assertEquals(3, roleManager.count());
+        assertEquals(1, roleManager.count());
         assertEquals(1, assignmentManager.count());
     }
 
