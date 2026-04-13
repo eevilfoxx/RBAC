@@ -23,44 +23,54 @@ public class ReportGenerator {
                 "USERNAME", "FULL NAME", "EMAIL", "ROLES", "ASSIGNMENT TYPE"));
         sb.append("-".repeat(100)).append("\n");
 
-        for (User user : users) {
-            List<RoleAssignment> assignments = assignmentManager.findByUser(user);
 
-            if (assignments.isEmpty()) {
-                sb.append(String.format("%-15s | %-25s | %-30s | %-20s | %s\n",
-                        user.username(),
-                        truncate(user.fullName(), 25),
-                        truncate(user.email(), 30),
-                        "No roles",
-                        "-"));
-            } else {
-                boolean first = true;
-                for (RoleAssignment assignment : assignments) {
-                    if (first) {
-                        sb.append(String.format("%-15s | %-25s | %-30s | %-20s | %s\n",
+        List<String> lines = users.parallelStream()
+                .map(user -> {
+                    List<RoleAssignment> assignments = assignmentManager.findByUser(user);
+
+                    StringBuilder local = new StringBuilder();
+
+                    if (assignments.isEmpty()) {
+                        local.append(String.format("%-15s | %-25s | %-30s | %-20s | %s\n",
                                 user.username(),
                                 truncate(user.fullName(), 25),
                                 truncate(user.email(), 30),
-                                truncate(assignment.role().getName(), 20),
-                                assignment.assignmentType() + (assignment.isActive() ? " (active)" : " (expired)")));
-                        first = false;
+                                "No roles",
+                                "-"));
                     } else {
-                        sb.append(String.format("%-15s | %-25s | %-30s | %-20s | %s\n",
-                                "", "", "",
-                                truncate(assignment.role().getName(), 20),
-                                assignment.assignmentType() + (assignment.isActive() ? " (active)" : " (expired)")));
+                        boolean first = true;
+                        for (RoleAssignment assignment : assignments) {
+                            if (first) {
+                                local.append(String.format("%-15s | %-25s | %-30s | %-20s | %s\n",
+                                        user.username(),
+                                        truncate(user.fullName(), 25),
+                                        truncate(user.email(), 30),
+                                        truncate(assignment.role().getName(), 20),
+                                        assignment.assignmentType() +
+                                                (assignment.isActive() ? " (active)" : " (expired)")));
+                                first = false;
+                            } else {
+                                local.append(String.format("%-15s | %-25s | %-30s | %-20s | %s\n",
+                                        "", "", "",
+                                        truncate(assignment.role().getName(), 20),
+                                        assignment.assignmentType() +
+                                                (assignment.isActive() ? " (active)" : " (expired)")));
+                            }
+                        }
                     }
-                }
-            }
-            sb.append("-".repeat(100)).append("\n");
-        }
 
-        // Статистика
+                    local.append("-".repeat(100)).append("\n");
+                    return local.toString();
+                })
+                .collect(Collectors.toList());
+
+        lines.forEach(sb::append);
+
         sb.append("\n").append("=".repeat(100)).append("\n");
         sb.append("STATISTICS\n");
         sb.append("=".repeat(100)).append("\n");
 
-        long usersWithRoles = users.stream()
+        long usersWithRoles = users.parallelStream()
                 .filter(u -> !assignmentManager.findByUser(u).isEmpty())
                 .count();
 
@@ -121,25 +131,6 @@ public class ReportGenerator {
             sb.append("-".repeat(100)).append("\n");
         }
 
-        // Статистика по правам
-        sb.append("\n").append("=".repeat(80)).append("\n");
-        sb.append("PERMISSIONS STATISTICS\n");
-        sb.append("=".repeat(80)).append("\n");
-
-        Map<String, Long> permissionStats = new HashMap<>();
-        for (Role role : roles) {
-            for (Permission perm : role.getPermissions()) {
-                String key = perm.name() + " on " + perm.resource();
-                permissionStats.merge(key, 1L, Long::sum);
-            }
-        }
-
-        sb.append("Most common permissions:\n");
-        permissionStats.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .limit(10)
-                .forEach(e -> sb.append(String.format("  %s: %d roles\n", e.getKey(), e.getValue())));
-
         return sb.toString();
     }
 
@@ -151,24 +142,30 @@ public class ReportGenerator {
 
         List<User> users = userManager.findAll();
 
-        Set<String> allResources = new TreeSet<>();
-        Map<String, Set<String>> userPermissions = new HashMap<>();
+        Map<String, Set<String>> userPermissions = users.parallelStream()
+                .collect(Collectors.toConcurrentMap(
+                        User::username,
+                        user -> {
+                            Set<String> permissions = new HashSet<>();
+                            List<RoleAssignment> assignments = assignmentManager.findByUser(user);
 
-        for (User user : users) {
-            Set<String> permissions = new HashSet<>();
-            List<RoleAssignment> assignments = assignmentManager.findByUser(user);
+                            for (RoleAssignment assignment : assignments) {
+                                if (assignment.isActive()) {
+                                    for (Permission perm : assignment.role().getPermissions()) {
+                                        permissions.add(perm.resource() + ":" + perm.name());
+                                    }
+                                }
+                            }
+                            return permissions;
+                        }
+                ));
 
-            for (RoleAssignment assignment : assignments) {
-                if (assignment.isActive()) {
-                    for (Permission perm : assignment.role().getPermissions()) {
-                        String resource = perm.resource();
-                        allResources.add(resource);
-                        permissions.add(resource + ":" + perm.name());
-                    }
-                }
-            }
-            userPermissions.put(user.username(), permissions);
-        }
+        Set<String> allResources = users.parallelStream()
+                .flatMap(user -> assignmentManager.findByUser(user).stream())
+                .filter(RoleAssignment::isActive)
+                .flatMap(a -> a.role().getPermissions().stream())
+                .map(Permission::resource)
+                .collect(Collectors.toCollection(TreeSet::new));
 
         List<String> resources = new ArrayList<>(allResources);
 
@@ -179,32 +176,37 @@ public class ReportGenerator {
         sb.append("\n");
         sb.append("-".repeat(15 + resources.size() * 18)).append("\n");
 
-        for (User user : users) {
-            sb.append(String.format("%-15s", truncate(user.username(), 15)));
-            Set<String> userPerms = userPermissions.getOrDefault(user.username(), new HashSet<>());
+        List<String> lines = users.parallelStream()
+                .map(user -> {
+                    StringBuilder local = new StringBuilder();
 
-            for (String resource : resources) {
-                boolean hasRead = userPerms.contains(resource + ":read") ||
-                        userPerms.contains(resource + ":write") ||
-                        userPerms.contains(resource + ":all");
-                boolean hasWrite = userPerms.contains(resource + ":write") ||
-                        userPerms.contains(resource + ":all");
+                    local.append(String.format("%-15s", truncate(user.username(), 15)));
 
-                String permSymbol;
-                if (hasRead && hasWrite) {
-                    permSymbol = "     RW     ";
-                } else if (hasRead) {
-                    permSymbol = "     R      ";
-                } else if (hasWrite) {
-                    permSymbol = "     W      ";
-                } else {
-                    permSymbol = "     -      ";
-                }
+                    Set<String> userPerms = userPermissions.getOrDefault(user.username(), Set.of());
 
-                sb.append(String.format(" | %s", permSymbol));
-            }
-            sb.append("\n");
-        }
+                    for (String resource : resources) {
+                        boolean hasRead = userPerms.contains(resource + ":read") ||
+                                userPerms.contains(resource + ":write") ||
+                                userPerms.contains(resource + ":all");
+
+                        boolean hasWrite = userPerms.contains(resource + ":write") ||
+                                userPerms.contains(resource + ":all");
+
+                        String permSymbol;
+                        if (hasRead && hasWrite) permSymbol = "     RW     ";
+                        else if (hasRead) permSymbol = "     R      ";
+                        else if (hasWrite) permSymbol = "     W      ";
+                        else permSymbol = "     -      ";
+
+                        local.append(String.format(" | %s", permSymbol));
+                    }
+
+                    local.append("\n");
+                    return local.toString();
+                })
+                .collect(Collectors.toList());
+
+        lines.forEach(sb::append);
 
         sb.append("\n").append("=".repeat(120)).append("\n");
         sb.append("LEGEND:\n");
