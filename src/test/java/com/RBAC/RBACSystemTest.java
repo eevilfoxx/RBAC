@@ -20,8 +20,8 @@ class RBACSystemTest {
         userManager.add(admin);
 
         Role adminRole = new Role("admin", "admin");
-        Role managerRole = new Role("Manager", "manager");
-        Role viewerRole = new Role("Viewer", "viewer");
+        Role managerRole = new Role("manager", "manager");
+        Role viewerRole = new Role("viewer", "viewer");
 
         roleManager.add(adminRole);
         roleManager.add(managerRole);
@@ -51,8 +51,8 @@ class RBACSystemTest {
 
         userManager.add(new User("admin", "Admin", "admin@mail.com"));
 
-        roleManager.add(new Role("Manager", "manager"));
-        roleManager.add(new Role("Viewer", "viewer"));
+        roleManager.add(new Role("manager", "manager"));
+        roleManager.add(new Role("viewer", "viewer"));
 
         String stats = system.generateStatistics();
 
