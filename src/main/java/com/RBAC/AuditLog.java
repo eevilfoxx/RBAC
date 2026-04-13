@@ -48,9 +48,18 @@ public class AuditLog {
 
     public void log(String action, String performer, String target, String details) {
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
-        AuditEntry entry = new AuditEntry(timestamp, action, performer, target, details);
+        queue.offer(new AuditEntry(timestamp, action, performer, target, details));
+    }
 
-        queue.offer(entry);
+    public void flush() {
+        while (!queue.isEmpty()) {
+            Thread.yield();
+        }
+
+        // маленький доп. буфер чтобы worker точно успел переложить
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException ignored) {}
     }
 
     public List<AuditEntry> getAll() {
@@ -75,27 +84,6 @@ public class AuditLog {
         }
     }
 
-    public void printLog() {
-        List<AuditEntry> snapshot = getAll();
-
-        System.out.println("\n" + "=".repeat(100));
-        System.out.printf("%-20s | %-20s | %-15s | %-20s | %s%n",
-                "TIMESTAMP", "ACTION", "PERFORMER", "TARGET", "DETAILS");
-        System.out.println("=".repeat(100));
-
-        for (AuditEntry entry : snapshot) {
-            System.out.printf("%-20s | %-20s | %-15s | %-20s | %s%n",
-                    entry.timestamp(),
-                    truncate(entry.action(), 20),
-                    truncate(entry.performer(), 15),
-                    truncate(entry.target(), 20),
-                    truncate(entry.details(), 30));
-        }
-
-        System.out.println("=".repeat(100));
-        System.out.println("Total entries: " + snapshot.size());
-    }
-
     public void saveToFile(String filename) {
         List<AuditEntry> snapshot = getAll();
 
@@ -112,10 +100,7 @@ public class AuditLog {
                         entry.details().replace(",", ";")));
             }
 
-            Path file = Paths.get(filename);
-            Files.write(file, lines);
-
-            System.out.println("Audit log saved to: " + filename);
+            Files.write(Paths.get(filename), lines);
 
         } catch (IOException e) {
             System.err.println("Error saving audit log: " + e.getMessage());
@@ -124,10 +109,5 @@ public class AuditLog {
 
     public void shutdown() {
         executor.shutdownNow();
-    }
-
-    private String truncate(String str, int length) {
-        if (str == null) return "";
-        return str.length() > length ? str.substring(0, length - 3) + "..." : str;
     }
 }

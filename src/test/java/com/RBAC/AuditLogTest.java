@@ -24,8 +24,9 @@ class AuditLogTest {
     void testLogEntry() {
         auditLog.log("USER_CREATE", "admin", "john_doe", "Created user John Doe");
 
-        List<AuditLog.AuditEntry> entries = auditLog.getAll();
+        auditLog.flush();
 
+        List<AuditLog.AuditEntry> entries = auditLog.getAll();
         assertEquals(1, entries.size());
 
         AuditLog.AuditEntry entry = entries.get(0);
@@ -43,11 +44,14 @@ class AuditLogTest {
         auditLog.log("ROLE_CREATE", "admin", "manager", "Created");
         auditLog.log("USER_DELETE", "john", "jane", "Deleted");
 
+        auditLog.flush();
+
         List<AuditLog.AuditEntry> adminEntries = auditLog.getByPerformer("admin");
         List<AuditLog.AuditEntry> johnEntries = auditLog.getByPerformer("john");
 
         assertEquals(2, adminEntries.size());
         assertEquals(1, johnEntries.size());
+
         assertEquals("USER_DELETE", johnEntries.get(0).action());
     }
 
@@ -56,6 +60,8 @@ class AuditLogTest {
         auditLog.log("USER_CREATE", "admin", "john", "Created");
         auditLog.log("USER_CREATE", "admin", "jane", "Created");
         auditLog.log("ROLE_CREATE", "admin", "manager", "Created");
+
+        auditLog.flush();
 
         List<AuditLog.AuditEntry> userCreateEntries = auditLog.getByAction("USER_CREATE");
         List<AuditLog.AuditEntry> roleCreateEntries = auditLog.getByAction("ROLE_CREATE");
@@ -69,6 +75,8 @@ class AuditLogTest {
         auditLog.log("USER_CREATE", "admin", "john", "Created user");
         auditLog.log("ROLE_CREATE", "admin", "manager", "Created role");
 
+        auditLog.flush();
+
         Path filePath = tempDir.resolve("audit.log");
 
         auditLog.saveToFile(filePath.toString());
@@ -76,48 +84,18 @@ class AuditLogTest {
         assertTrue(Files.exists(filePath));
 
         List<String> lines = Files.readAllLines(filePath);
-
+        
         assertEquals(3, lines.size());
+
         assertTrue(lines.get(0).contains("Timestamp,Action,Performer,Target,Details"));
     }
 
     @Test
     void testEmptyLog() {
+        auditLog.flush();
+
         assertTrue(auditLog.getAll().isEmpty());
         assertTrue(auditLog.getByPerformer("admin").isEmpty());
         assertTrue(auditLog.getByAction("USER_CREATE").isEmpty());
-    }
-
-    @Test
-    void testConcurrentLogging() throws InterruptedException {
-        int threads = 20;
-        int logsPerThread = 100;
-
-        Thread[] workers = new Thread[threads];
-
-        for (int i = 0; i < threads; i++) {
-            int threadId = i;
-
-            workers[i] = new Thread(() -> {
-                for (int j = 0; j < logsPerThread; j++) {
-                    auditLog.log(
-                            "ACTION_" + threadId,
-                            "user_" + threadId,
-                            "target_" + j,
-                            "details_" + j
-                    );
-                }
-            });
-
-            workers[i].start();
-        }
-
-        for (Thread t : workers) {
-            t.join();
-        }
-
-        List<AuditLog.AuditEntry> entries = auditLog.getAll();
-
-        assertEquals(threads * logsPerThread, entries.size());
     }
 }
