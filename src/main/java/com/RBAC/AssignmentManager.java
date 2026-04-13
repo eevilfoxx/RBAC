@@ -189,4 +189,21 @@ public class AssignmentManager implements Repository<RoleAssignment> {
                 })
                 .collect(Collectors.toList());
     }
+
+    public int deactivateExpiredAssignments() {
+
+        int count = 0;
+
+        for (RoleAssignment assignment : assignments.values()) {
+
+            if (assignment instanceof TemporaryAssignment temp) {
+
+                if (temp.isExpired()) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
 }

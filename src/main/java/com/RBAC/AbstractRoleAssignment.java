@@ -85,4 +85,5 @@ abstract class AbstractRoleAssignment implements RoleAssignment {
         return sb.toString();
     }
 
+
 }

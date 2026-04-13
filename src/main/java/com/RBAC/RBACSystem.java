@@ -1,7 +1,7 @@
 package com.RBAC;
 
 import java.util.concurrent.*;
-import java.time.LocalDate;
+import java.util.concurrent.*;
 
 public class RBACSystem {
 
@@ -9,6 +9,9 @@ public class RBACSystem {
     private final RoleManager roleManager;
     private final AssignmentManager assignmentManager;
     private final AuditLog auditLog;
+
+    private final ScheduledExecutorService scheduler =
+            Executors.newSingleThreadScheduledExecutor();
 
     private String currentUser;
 
@@ -128,5 +131,49 @@ public class RBACSystem {
         userManager.clear();
         roleManager.clear();
         assignmentManager.clear();
+    }
+
+
+    public void startMaintenanceTask(int intervalSeconds) {
+
+        scheduler.scheduleAtFixedRate(() -> {
+
+            try {
+                // 1. считаем и (при необходимости) очищаем/обновляем истёкшие
+                int expired = assignmentManager.deactivateExpiredAssignments();
+
+                // 2. статистика (быстро)
+                String stats = generateStatistics();
+
+                // 3. логируем
+                auditLog.log(
+                        "SYSTEM_MAINTENANCE",
+                        "SYSTEM",
+                        "ALL",
+                        "Expired: " + expired + " | " + stats
+                );
+
+            } catch (Exception e) {
+                auditLog.log(
+                        "SYSTEM_ERROR",
+                        "SYSTEM",
+                        "SCHEDULER",
+                        String.valueOf(e.getMessage())
+                );
+            }
+
+        }, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
+    }
+
+    public void shutdownScheduler() {
+        scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }
