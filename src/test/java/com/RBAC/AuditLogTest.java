@@ -25,9 +25,11 @@ class AuditLogTest {
         auditLog.log("USER_CREATE", "admin", "john_doe", "Created user John Doe");
 
         List<AuditLog.AuditEntry> entries = auditLog.getAll();
+
         assertEquals(1, entries.size());
 
         AuditLog.AuditEntry entry = entries.get(0);
+
         assertEquals("USER_CREATE", entry.action());
         assertEquals("admin", entry.performer());
         assertEquals("john_doe", entry.target());
@@ -72,8 +74,10 @@ class AuditLogTest {
         auditLog.saveToFile(filePath.toString());
 
         assertTrue(Files.exists(filePath));
+
         List<String> lines = Files.readAllLines(filePath);
-        assertEquals(3, lines.size()); // Header + 2 entries
+
+        assertEquals(3, lines.size());
         assertTrue(lines.get(0).contains("Timestamp,Action,Performer,Target,Details"));
     }
 
@@ -82,5 +86,38 @@ class AuditLogTest {
         assertTrue(auditLog.getAll().isEmpty());
         assertTrue(auditLog.getByPerformer("admin").isEmpty());
         assertTrue(auditLog.getByAction("USER_CREATE").isEmpty());
+    }
+
+    @Test
+    void testConcurrentLogging() throws InterruptedException {
+        int threads = 20;
+        int logsPerThread = 100;
+
+        Thread[] workers = new Thread[threads];
+
+        for (int i = 0; i < threads; i++) {
+            int threadId = i;
+
+            workers[i] = new Thread(() -> {
+                for (int j = 0; j < logsPerThread; j++) {
+                    auditLog.log(
+                            "ACTION_" + threadId,
+                            "user_" + threadId,
+                            "target_" + j,
+                            "details_" + j
+                    );
+                }
+            });
+
+            workers[i].start();
+        }
+
+        for (Thread t : workers) {
+            t.join();
+        }
+
+        List<AuditLog.AuditEntry> entries = auditLog.getAll();
+
+        assertEquals(threads * logsPerThread, entries.size());
     }
 }
