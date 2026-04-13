@@ -1,5 +1,10 @@
 package com.RBAC;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
 public final class RoleFilters {
 
     private RoleFilters() {}
@@ -27,6 +32,8 @@ public final class RoleFilters {
     public static RoleFilter hasAtLeastNPermissions(int n) {
         return r -> r != null && r.getPermissions().size() >= n;
     }
+
+    private final Map<String, Role> rolesById = new ConcurrentHashMap<>();
 
     public List<Role> findByFilterParallel(RoleFilter filter) {
     return rolesById.values().parallelStream()

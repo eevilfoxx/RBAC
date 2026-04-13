@@ -1,5 +1,10 @@
 package com.RBAC;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
 public final class UserFilters {
 
     private UserFilters() {}
@@ -25,6 +30,8 @@ public final class UserFilters {
         String s = substring.toLowerCase();
         return u -> u != null && u.fullName().toLowerCase().contains(s);
     }
+
+    private final Map<String, User> users = new ConcurrentHashMap<>();
 
     public List<User> findByFilterParallel(UserFilter filter) {
     return users.values().parallelStream()

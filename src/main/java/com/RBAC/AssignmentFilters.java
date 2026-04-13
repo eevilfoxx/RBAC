@@ -4,6 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public final class AssignmentFilters {
 
@@ -95,6 +99,8 @@ public final class AssignmentFilters {
             return a -> false;
         }
     }
+
+    private final Map<String, RoleAssignment> assignments = new ConcurrentHashMap<>();
 
     public List<RoleAssignment> findByFilterParallel(AssignmentFilter filter) {
     return assignments.values().parallelStream()
