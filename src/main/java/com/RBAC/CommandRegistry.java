@@ -1079,6 +1079,92 @@ public class CommandRegistry {
             }
         });
 
+        parser.registerCommand("report-users-async", "Асинхронный отчёт по пользователям", (s, sys) -> {
+            System.out.println("Генерация отчёта запущена в фоне...");
+
+            sys.getExecutorService().submit(() -> {
+                try {
+                    ReportGenerator reportGen = new ReportGenerator();
+                    String report = reportGen.generateUserReport(
+                            sys.getUserManager(),
+                            sys.getAssignmentManager()
+                    );
+
+                    System.out.println("\n=== ASYNC USER REPORT ===\n");
+                    System.out.println(report);
+
+                    sys.getAuditLog().log(
+                            "REPORT_USERS_ASYNC",
+                            sys.getCurrentUser(),
+                            "system",
+                            "Async user report generated"
+                    );
+                } catch (Exception e) {
+                    System.err.println("Ошибка генерации отчёта: " + e.getMessage());
+                }
+            });
+        });
+
+        parser.registerCommand("save-async", "Асинхронное сохранение отчёта в файл", (s, sys) -> {
+            System.out.println(FormatUtils.formatHeader("Async Save Report"));
+
+            ReportGenerator reportGen = new ReportGenerator();
+
+            List<String> options = Arrays.asList(
+                    "User report",
+                    "Role report",
+                    "Permission matrix"
+            );
+
+            String choice = ConsoleUtils.promptChoice(s, "Выберите тип отчёта:", options);
+
+            String filename = ConsoleUtils.promptString(s, "Имя файла: ", true);
+
+            System.out.println("Сохранение запущено в фоне...");
+
+            sys.getExecutorService().submit(() -> {
+                try {
+                    String report;
+
+                    switch (options.indexOf(choice)) {
+                        case 0:
+                            report = reportGen.generateUserReport(
+                                    sys.getUserManager(),
+                                    sys.getAssignmentManager()
+                            );
+                            break;
+                        case 1:
+                            report = reportGen.generateRoleReport(
+                                    sys.getRoleManager(),
+                                    sys.getAssignmentManager()
+                            );
+                            break;
+                        case 2:
+                            report = reportGen.generatePermissionMatrix(
+                                    sys.getUserManager(),
+                                    sys.getAssignmentManager()
+                            );
+                            break;
+                        default:
+                            System.err.println("Неизвестный тип отчёта");
+                            return;
+                    }
+
+                    reportGen.exportToFile(report, filename);
+
+                    sys.getAuditLog().log(
+                            "REPORT_SAVE_ASYNC",
+                            sys.getCurrentUser(),
+                            filename,
+                            "Async report saved"
+                    );
+
+                } catch (Exception e) {
+                    System.err.println("Ошибка сохранения: " + e.getMessage());
+                }
+            });
+        });
+
         // =================== Служебные ===================
         parser.registerCommand("help", "Справка по командам", (s, sys) -> {
             parser.printHelp();
