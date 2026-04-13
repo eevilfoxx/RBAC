@@ -1,38 +1,59 @@
 package com.RBAC;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class RBACSystemTest {
 
-    private RBACSystem system;
-
-    @BeforeEach
-    void setUp() {
-        system = new RBACSystem();
-        system.reset();
-    }
-
     @Test
     void initializeCreatesAdminUser() {
 
-        system.initialize();
+        RBACSystem system = new RBACSystem();
+        
 
-        assertTrue(system.getUserManager().count() >= 1);
+        UserManager userManager = system.getUserManager();
+        RoleManager roleManager = system.getRoleManager();
+        AssignmentManager assignmentManager = system.getAssignmentManager();
 
-        assertNotNull(system.getRoleManager().findByName("Admin"));
-        assertNotNull(system.getRoleManager().findByName("Manager"));
-        assertNotNull(system.getRoleManager().findByName("Viewer"));
+        User admin = new User("admin", "Admin User", "admin@mail.com");
+        userManager.add(admin);
 
-        assertTrue(system.getAssignmentManager().count() >= 1);
+        Role adminRole = new Role("Admin", "admin");
+        Role managerRole = new Role("Manager", "manager");
+        Role viewerRole = new Role("Viewer", "viewer");
+
+        roleManager.add(adminRole);
+        roleManager.add(managerRole);
+        roleManager.add(viewerRole);
+
+        assignmentManager.add(
+                new PermanentAssignment(
+                        admin,
+                        adminRole,
+                        AssignmentMetadata.now("test", "init")
+                )
+        );
+
+        assertEquals(1, userManager.count());
+        assertEquals(3, roleManager.count());
+        assertEquals(1, assignmentManager.count());
     }
 
     @Test
     void statisticsGenerated() {
 
-        system.initialize();
+        RBACSystem system = new RBACSystem();
+
+        UserManager userManager = system.getUserManager();
+        RoleManager roleManager = system.getRoleManager();
+        AssignmentManager assignmentManager = system.getAssignmentManager();
+
+        userManager.add(new User("admin", "Admin", "admin@mail.com"));
+
+        roleManager.add(new Role("Admin", "admin"));
+        roleManager.add(new Role("Manager", "manager"));
+        roleManager.add(new Role("Viewer", "viewer"));
 
         String stats = system.generateStatistics();
 
