@@ -123,4 +123,10 @@ public class RBACSystem {
             Thread.currentThread().interrupt();
         }
     }
+
+    public void reset() {
+        userManager.clear();
+        roleManager.clear();
+        assignmentManager.clear();
+    }
 }
