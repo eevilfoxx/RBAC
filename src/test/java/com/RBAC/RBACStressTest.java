@@ -12,7 +12,7 @@ class RBACStressTest {
     @BeforeEach
     void setUp() {
         system = new RBACSystem();
-        system.initialize();
+        system.reset();
     }
 
     @Test
