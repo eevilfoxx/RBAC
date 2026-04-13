@@ -1,11 +1,5 @@
 package com.RBAC;
 
-import java.time.LocalDateTime;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
-
 public class TemporaryAssignment extends AbstractRoleAssignment {
     String expiresAt;
     private boolean autoRenew;
@@ -25,61 +19,102 @@ public class TemporaryAssignment extends AbstractRoleAssignment {
     }
 
     public void extend(String newExpirationDate) {
-        LocalDateTime currentExpiration = LocalDate.parse(expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                .atStartOfDay();
-        LocalDateTime newExpiration;
+        if (!DateUtils.isValidDate(newExpirationDate)) {
+            throw new IllegalArgumentException("Неверный формат даты. Используйте YYYY-MM-DD");
+        }
 
-        try {
-            newExpiration = LocalDate.parse(newExpirationDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                    .atStartOfDay();
-        } catch (DateTimeParseException e) {
-            newExpiration = LocalDate.parse(newExpirationDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                    .atStartOfDay();
+        if (expiresAt != null && DateUtils.isBeforeOrEqual(newExpirationDate, expiresAt)) {
+            throw new IllegalArgumentException("Новая дата должна быть позже текущей");
         }
 
         this.expiresAt = newExpirationDate;
     }
 
     public boolean isExpired() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiration = LocalDate.parse(expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                .atStartOfDay();
-        return now.isAfter(expiration);
+        if (expiresAt == null) return false;
+        return DateUtils.isBefore(expiresAt, DateUtils.getCurrentDate());
     }
 
     public String getTimeRemaining() {
+        if (expiresAt == null) return "Бессрочно";
+
         if (isExpired()) {
-            return "Expired";
+            long daysAgo = DateUtils.getDaysSince(expiresAt);
+            return String.format("Истекло %d дн. назад", daysAgo);
         }
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiration = LocalDate.parse(expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                .atStartOfDay();
 
-        long days = ChronoUnit.DAYS.between(now, expiration);
-        long hours = ChronoUnit.HOURS.between(now, expiration) % 24;
-        long minutes = ChronoUnit.MINUTES.between(now, expiration) % 60;
+        long daysLeft = DateUtils.getDaysUntil(expiresAt);
 
-        if (days > 0) {
-            return String.format("%d days, %d hours, %d minutes", days, hours, minutes);
-        } else if (hours > 0) {
-            return String.format("%d hours, %d minutes", hours, minutes);
+        if (daysLeft == 0) {
+            return "Истекает сегодня";
+        } else if (daysLeft < 0) {
+            return "Просрочено";
+        } else if (daysLeft == 1) {
+            return "1 день";
+        } else if (daysLeft <= 30) {
+            return daysLeft + " дней";
         } else {
-            return String.format("%d minutes", minutes);
+            long monthsLeft = daysLeft / 30;
+            long remainingDays = daysLeft % 30;
+            if (remainingDays == 0) {
+                return monthsLeft + " мес.";
+            } else {
+                return monthsLeft + " мес. " + remainingDays + " дн.";
+            }
         }
+    }
+
+    public String getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(String expiresAt) {
+        if (!DateUtils.isValidDate(expiresAt)) {
+            throw new IllegalArgumentException("Неверный формат даты. Используйте YYYY-MM-DD");
+        }
+        this.expiresAt = expiresAt;
+    }
+
+    public boolean isAutoRenew() {
+        return autoRenew;
+    }
+
+    public void setAutoRenew(boolean autoRenew) {
+        this.autoRenew = autoRenew;
     }
 
     @Override
     public String summary() {
         StringBuilder sb = new StringBuilder(super.summary());
 
-        sb.append(String.format("\nExpires at: %s", expiresAt));
+        sb.append(String.format("\nДата истечения: %s", expiresAt != null ? expiresAt : "не установлена"));
+
+        if (expiresAt != null) {
+            sb.append(String.format(" (%s)", DateUtils.formatRelativeTime(expiresAt)));
+        }
 
         if (!isExpired()) {
-            sb.append(String.format("\nTime remaining: %s", getTimeRemaining()));
+            sb.append(String.format("\nОсталось времени: %s", getTimeRemaining()));
         } else {
-            sb.append("\nStatus: EXPIRED");
+            sb.append(String.format("\nСтатус: ИСТЕКЛО (%s)", getTimeRemaining()));
+        }
+
+        if (autoRenew) {
+            sb.append("\nАвтопродление: ВКЛ");
         }
 
         return sb.toString();
+    }
+
+    public String getStatusWithIcon() {
+        return DateUtils.getStatusWithIcon(expiresAt);
+    }
+
+    public long getDaysUntilExpiration() {
+        return expiresAt != null ? DateUtils.getDaysUntil(expiresAt) : Long.MAX_VALUE;
+    }
+
+    public long getDaysSinceExpiration() {
+        return expiresAt != null && isExpired() ? DateUtils.getDaysSince(expiresAt) : 0;
     }
 }
