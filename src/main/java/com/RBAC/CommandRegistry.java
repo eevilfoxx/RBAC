@@ -1082,7 +1082,7 @@ public class CommandRegistry {
         parser.registerCommand("report-users-async", "Асинхронный отчёт по пользователям", (s, sys) -> {
             System.out.println("Генерация отчёта запущена в фоне...");
 
-            sys.getExecutorService().submit(() -> {
+            sys.runAsync(() -> {
                 try {
                     ReportGenerator reportGen = new ReportGenerator();
                     String report = reportGen.generateUserReport(
@@ -1122,32 +1122,27 @@ public class CommandRegistry {
 
             System.out.println("Сохранение запущено в фоне...");
 
-            sys.getExecutorService().submit(() -> {
+            sys.runAsync(() -> {
                 try {
                     String report;
 
                     switch (options.indexOf(choice)) {
-                        case 0:
-                            report = reportGen.generateUserReport(
-                                    sys.getUserManager(),
-                                    sys.getAssignmentManager()
-                            );
-                            break;
-                        case 1:
-                            report = reportGen.generateRoleReport(
-                                    sys.getRoleManager(),
-                                    sys.getAssignmentManager()
-                            );
-                            break;
-                        case 2:
-                            report = reportGen.generatePermissionMatrix(
-                                    sys.getUserManager(),
-                                    sys.getAssignmentManager()
-                            );
-                            break;
-                        default:
+                        case 0 -> report = reportGen.generateUserReport(
+                                sys.getUserManager(),
+                                sys.getAssignmentManager()
+                        );
+                        case 1 -> report = reportGen.generateRoleReport(
+                                sys.getRoleManager(),
+                                sys.getAssignmentManager()
+                        );
+                        case 2 -> report = reportGen.generatePermissionMatrix(
+                                sys.getUserManager(),
+                                sys.getAssignmentManager()
+                        );
+                        default -> {
                             System.err.println("Неизвестный тип отчёта");
                             return;
+                        }
                     }
 
                     reportGen.exportToFile(report, filename);
