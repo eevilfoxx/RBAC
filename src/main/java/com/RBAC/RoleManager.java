@@ -1,31 +1,30 @@
-package com.RBAC;
-
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RoleManager implements Repository<Role> {
 
-    private final Map<String, Role> rolesById = new HashMap<>();
-    private final Map<String, Role> rolesByName = new HashMap<>();
-
+    private final ConcurrentHashMap<String, Role> rolesById = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Role> rolesByName = new ConcurrentHashMap<>();
 
     @Override
     public void add(Role role) {
-        if (rolesByName.containsKey(role.getName())) {
+        Role existing = rolesByName.putIfAbsent(role.getName(), role);
+        if (existing != null) {
             throw new IllegalArgumentException("Role name already exists: " + role.getName());
         }
+
         rolesById.put(role.getId(), role);
-        rolesByName.put(role.getName(), role);
     }
 
     @Override
     public boolean remove(Role role) {
-        Role removed = rolesById.remove(role.getId());
-        if (removed != null) {
-            rolesByName.remove(removed.getName());
-            return true;
+        synchronized (this) {
+            Role removed = rolesById.remove(role.getId());
+            if (removed != null) {
+                rolesByName.remove(removed.getName());
+                return true;
+            }
+            return false;
         }
-        return false;
     }
 
     @Override
@@ -48,7 +47,6 @@ public class RoleManager implements Repository<Role> {
         rolesById.clear();
         rolesByName.clear();
     }
-
 
     public Optional<Role> findByName(String name) {
         return Optional.ofNullable(rolesByName.get(name));
@@ -76,7 +74,10 @@ public class RoleManager implements Repository<Role> {
         if (role == null) {
             throw new NoSuchElementException("Role not found: " + roleName);
         }
-        role.addPermission(permission);
+
+        synchronized (role) {
+            role.addPermission(permission);
+        }
     }
 
     public void removePermissionFromRole(String roleName, Permission permission) {
@@ -84,7 +85,10 @@ public class RoleManager implements Repository<Role> {
         if (role == null) {
             throw new NoSuchElementException("Role not found: " + roleName);
         }
-        role.getPermissions().remove(permission);
+
+        synchronized (role) {
+            role.getPermissions().remove(permission);
+        }
     }
 
     public List<Role> findRolesWithPermission(String permissionName, String resource) {
@@ -92,7 +96,7 @@ public class RoleManager implements Repository<Role> {
                 .filter(r -> r.getPermissions().stream()
                         .anyMatch(p ->
                                 p.name().equals(permissionName) &&
-                                        p.resource().equals(resource)))
+                                p.resource().equals(resource)))
                 .collect(Collectors.toList());
     }
 }

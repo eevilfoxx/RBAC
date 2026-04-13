@@ -1,33 +1,29 @@
-package com.RBAC;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AssignmentManager implements Repository<RoleAssignment> {
 
-    private final Map<String, RoleAssignment> assignments = new HashMap<>();
+    private final ConcurrentHashMap<String, RoleAssignment> assignments = new ConcurrentHashMap<>();
 
     @Override
     public void add(RoleAssignment assignment) {
-        boolean duplicate = assignments.values().stream()
-                .anyMatch(a ->
-                        a.isActive() &&
-                                a.user().equals(assignment.user()) &&
-                                a.role().equals(assignment.role()));
+        synchronized (this) {
+            boolean duplicate = assignments.values().stream()
+                    .anyMatch(a ->
+                            a.isActive() &&
+                            a.user().equals(assignment.user()) &&
+                            a.role().equals(assignment.role()));
 
-        if (duplicate) {
-            throw new IllegalStateException("Role already assigned to user");
+            if (duplicate) {
+                throw new IllegalStateException("Role already assigned to user");
+            }
+
+            assignments.put(assignment.assignmentId(), assignment);
         }
-
-        assignments.put(assignment.assignmentId(), assignment);
     }
 
     @Override
     public boolean remove(RoleAssignment assignment) {
-        return assignments.remove(assignment.assignmentId()) != null;
+        return assignments.remove(assignment.assignmentId(), assignment);
     }
 
     @Override
@@ -83,12 +79,16 @@ public class AssignmentManager implements Repository<RoleAssignment> {
 
     public List<RoleAssignment> getExpiredAssignments() {
         LocalDateTime now = LocalDateTime.now();
+
         return assignments.values().stream()
                 .filter(a -> a instanceof TemporaryAssignment)
                 .map(a -> (TemporaryAssignment) a)
                 .filter(a -> {
                     try {
-                        LocalDateTime expirationDate = LocalDateTime.parse(a.expiresAt, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        LocalDateTime expirationDate = LocalDateTime.parse(
+                                a.expiresAt,
+                                DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                        );
                         return expirationDate.isBefore(now);
                     } catch (Exception e) {
                         return false;
@@ -97,20 +97,19 @@ public class AssignmentManager implements Repository<RoleAssignment> {
                 .collect(Collectors.toList());
     }
 
-
     public boolean userHasRole(User user, Role role) {
         return assignments.values().stream()
                 .anyMatch(a ->
                         a.isActive() &&
-                                a.user().equals(user) &&
-                                a.role().equals(role));
+                        a.user().equals(user) &&
+                        a.role().equals(role));
     }
 
     public boolean userHasPermission(User user, String permissionName, String resource) {
         return getUserPermissions(user).stream()
                 .anyMatch(p ->
                         p.name().equals(permissionName) &&
-                                p.resource().equals(resource));
+                        p.resource().equals(resource));
     }
 
     public Set<Permission> getUserPermissions(User user) {
@@ -121,30 +120,34 @@ public class AssignmentManager implements Repository<RoleAssignment> {
     }
 
     public void revokeAssignment(String assignmentId) {
-        RoleAssignment a = assignments.get(assignmentId);
-        if (a == null) {
-            throw new NoSuchElementException("Assignment not found");
-        }
+        assignments.compute(assignmentId, (id, a) -> {
+            if (a == null) {
+                throw new NoSuchElementException("Assignment not found");
+            }
 
-        if (a instanceof TemporaryAssignment) {
-            String extendDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            ((TemporaryAssignment) a).extend(extendDate);
-        } else {
-            assignments.remove(assignmentId);
-        }
+            if (a instanceof TemporaryAssignment temp) {
+                String extendDate = LocalDate.now()
+                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                temp.extend(extendDate);
+                return temp;
+            } else {
+                return null;
+            }
+        });
     }
 
     public void extendTemporaryAssignment(String assignmentId, String newExpirationDate) {
-        RoleAssignment a = assignments.get(assignmentId);
-        if (a == null) {
-            throw new NoSuchElementException("Assignment not found");
-        }
+        assignments.compute(assignmentId, (id, a) -> {
+            if (a == null) {
+                throw new NoSuchElementException("Assignment not found");
+            }
 
-        if (!(a instanceof TemporaryAssignment)) {
-            throw new IllegalArgumentException("Assignment is not temporary");
-        }
+            if (!(a instanceof TemporaryAssignment temp)) {
+                throw new IllegalArgumentException("Assignment is not temporary");
+            }
 
-        TemporaryAssignment tempAssignment = (TemporaryAssignment) a;
-        tempAssignment.extend(newExpirationDate);
+            temp.extend(newExpirationDate);
+            return temp;
+        });
     }
 }

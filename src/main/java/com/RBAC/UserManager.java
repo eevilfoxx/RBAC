@@ -1,24 +1,22 @@
-package com.RBAC;
-
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class UserManager implements Repository<User> {
 
-    private final Map<String, User> users = new HashMap<>();
+    private final ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
 
     @Override
     public void add(User user) {
         validate(user);
-        if (users.containsKey(user.username())) {
+
+        User existing = users.putIfAbsent(user.username(), user);
+        if (existing != null) {
             throw new IllegalArgumentException("User already exists: " + user.username());
         }
-        users.put(user.username(), user);
     }
 
     @Override
     public boolean remove(User user) {
-        return users.remove(user.username()) != null;
+        return users.remove(user.username(), user);
     }
 
     @Override
@@ -69,18 +67,16 @@ public class UserManager implements Repository<User> {
     }
 
     public void update(String username, String newFullName, String newEmail) {
-        User user = users.get(username);
-        if (user == null) {
-            throw new NoSuchElementException("User not found: " + username);
-        }
         if (newFullName == null || newEmail == null) {
             throw new IllegalArgumentException("Invalid user data");
         }
 
-        User new_user = new User(username, newFullName, newEmail);
-        add(new_user);
-
-        remove(user);
+        users.compute(username, (k, oldUser) -> {
+            if (oldUser == null) {
+                throw new NoSuchElementException("User not found: " + username);
+            }
+            return new User(username, newFullName, newEmail);
+        });
     }
 
     private void validate(User user) {
