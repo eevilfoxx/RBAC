@@ -10,7 +10,7 @@ class RBACSystemTest {
     void initializeCreatesAdminUser() {
 
         RBACSystem system = new RBACSystem();
-        
+
 
         UserManager userManager = system.getUserManager();
         RoleManager roleManager = system.getRoleManager();
@@ -19,7 +19,7 @@ class RBACSystemTest {
         User admin = new User("admin", "Admin User", "admin@mail.com");
         userManager.add(admin);
 
-        Role adminRole = new Role("Admin", "admin");
+        Role adminRole = new Role("admin", "admin");
         Role managerRole = new Role("Manager", "manager");
         Role viewerRole = new Role("Viewer", "viewer");
 
@@ -51,7 +51,6 @@ class RBACSystemTest {
 
         userManager.add(new User("admin", "Admin", "admin@mail.com"));
 
-        roleManager.add(new Role("Admin", "admin"));
         roleManager.add(new Role("Manager", "manager"));
         roleManager.add(new Role("Viewer", "viewer"));
 
