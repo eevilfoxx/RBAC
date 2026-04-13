@@ -27,4 +27,10 @@ public final class RoleFilters {
     public static RoleFilter hasAtLeastNPermissions(int n) {
         return r -> r != null && r.getPermissions().size() >= n;
     }
+
+    public List<Role> findByFilterParallel(RoleFilter filter) {
+    return rolesById.values().parallelStream()
+            .filter(filter::test)
+            .collect(Collectors.toList());
+}
 }

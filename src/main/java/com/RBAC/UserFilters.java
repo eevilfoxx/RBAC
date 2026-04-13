@@ -25,4 +25,11 @@ public final class UserFilters {
         String s = substring.toLowerCase();
         return u -> u != null && u.fullName().toLowerCase().contains(s);
     }
+
+    public List<User> findByFilterParallel(UserFilter filter) {
+    return users.values().parallelStream()
+            .filter(filter::test)
+            .collect(Collectors.toList());
+    }
+
 }

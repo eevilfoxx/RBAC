@@ -95,4 +95,11 @@ public final class AssignmentFilters {
             return a -> false;
         }
     }
+
+    public List<RoleAssignment> findByFilterParallel(AssignmentFilter filter) {
+    return assignments.values().parallelStream()
+            .filter(filter::test)
+            .collect(Collectors.toList());
+    }
+
 }
